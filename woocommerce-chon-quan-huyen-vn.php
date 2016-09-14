@@ -130,9 +130,10 @@ final class Woocommerce_State_VietNam
 		add_filter('woocommerce_get_country_locale',array($this,'custom_override_locale_setting'));
 		add_filter('woocommerce_admin_billing_fields', array($this,'add_custom_billing_fields'));
 		add_filter('woocommerce_admin_shipping_fields', array($this,'add_custom_shipping_fields'));
-		add_filter('woocommerce_order_formatted_billing_address', array($this,'nam_woocommerce_order_formatted_billing_address'));
-		add_filter('woocommerce_order_formatted_shipping_address', array($this,'woocommerce_order_formatted_shipping_address'));
-		
+		add_filter('woocommerce_order_formatted_billing_address', array($this,'nam_woocommerce_order_formatted_billing_address'),10,2);
+		add_filter('woocommerce_order_formatted_shipping_address', array($this,'nam_order_formatted_shipping_address'),10,2);
+		add_filter('woocommerce_formatted_address_replacements',array($this,'nam_formatted_address_replacements'),10,2);
+		add_filter('woocommerce_localisation_address_formats',array($this,'nam_localisation_address_formats'));
 	}
 
 	/**
@@ -266,14 +267,14 @@ final class Woocommerce_State_VietNam
 	public function add_custom_billing_fields($fields){
 		$fields['district_vn']= array(
 			'label'=>"Quận",
-			'show'=>true
+			'show'=>false
 		);
 		return $fields;
 	}
 	public function add_custom_shipping_fields($fields){
 		$fields['district_vn']= array(
 			'label'=>"Quận",
-			'show'=>true
+			'show'=>false
 		);
 		return $fields;
 	}
@@ -293,7 +294,12 @@ final class Woocommerce_State_VietNam
 		
 		return $address;
 	}
-	public function nam_woocommerce_order_formatted_shipping_address($address,$order){
+	/**
+	 *	make custom order shipping address
+	 *
+	 *	@return array
+	 */
+	public function nam_order_formatted_shipping_address($address,$order){
 		$address=array(
 			'first_name'    => $order->shipping_first_name,
 			'last_name'     => $order->shipping_last_name,
@@ -308,6 +314,40 @@ final class Woocommerce_State_VietNam
 		);
 		
 		return $address;
+	}
+	
+	public function nam_formatted_address_replacements($formatted_address,$args){
+		extract( $args );
+		$formatted_address = array(
+			'{first_name}'       => $first_name,
+			'{last_name}'        => $last_name,
+			'{name}'             => $first_name . ' ' . $last_name,
+			'{company}'          => $company,
+			'{address_1}'        => $address_1,
+			'{address_2}'        => $address_2,
+			'{district_vn}'        => $district_vn,
+			'{city}'             => $city,
+			'{state}'            => $full_state,
+			'{postcode}'         => $postcode,
+			'{country}'          => $full_country,
+			'{first_name_upper}' => strtoupper( $first_name ),
+			'{last_name_upper}'  => strtoupper( $last_name ),
+			'{name_upper}'       => strtoupper( $first_name . ' ' . $last_name ),
+			'{company_upper}'    => strtoupper( $company ),
+			'{address_1_upper}'  => strtoupper( $address_1 ),
+			'{address_2_upper}'  => strtoupper( $address_2 ),
+			'{district_vn_upper}'=> strtoupper($district_vn),
+			'{city_upper}'       => strtoupper( $city ),
+			'{state_upper}'      => strtoupper( $full_state ),
+			'{state_code}'       => strtoupper( $state ),
+			'{postcode_upper}'   => strtoupper( $postcode ),
+			'{country_upper}'    => strtoupper( $full_country )
+		);
+		return $formatted_address;
+	}
+	public function nam_localisation_address_formats($countries){
+		$countries['VN']="{name}\n{company}\n{address_1}, {district_vn}\n{city}\n{country}";
+		return $countries;
 	}
 	/**
 	* Display notice if woocommerce is not installed
