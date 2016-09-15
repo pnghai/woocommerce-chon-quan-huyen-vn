@@ -124,19 +124,20 @@ final class Woocommerce_State_VietNam
 		add_filter( 'woocommerce_checkout_fields' , array($this, 'nam_additional_checkout_fields' ),10,1);
 		add_action( 'woocommerce_checkout_update_order_meta', array($this, 'nam_save_field_distric'));
 		add_action('woocommerce_checkout_update_order_review', array($this,'nam_set_district_vn_session'),10,2);
-
 		add_filter( 'woocommerce_default_address_fields', array($this,'wc_custom_order_address_fields'), 10, 1 );
 		add_filter('woocommerce_cart_shipping_packages', array($this,'add_custom_data_to_packages'), 10, 1);
 		add_filter('woocommerce_get_country_locale',array($this,'custom_override_locale_setting'),10,1);
 		add_filter('woocommerce_admin_billing_fields', array($this,'add_district_fields'),10,1);
 		add_filter('woocommerce_admin_shipping_fields', array($this,'add_district_fields'),10,1);
-		add_filter('woocommerce_order_formatted_billing_address', array($this,'nam_woocommerce_order_formatted_billing_address'),10,2);
-		add_filter('woocommerce_order_formatted_shipping_address', array($this,'nam_order_formatted_shipping_address'),10,2);
+		add_filter('woocommerce_order_formatted_billing_address', array($this,'nam_order_formatted_billing_address'),10,2);
+		add_filter('woocommerce_order_formatted_shipping_address', array($this,'nam_insert_district_to_shipping_address'),10,2);
+    add_filter('woocommerce_shipping_address_map_url_parts',array($this,'nam_insert_district_to_shipping_address'),10,2);
 		add_filter('woocommerce_formatted_address_replacements',array($this,'nam_formatted_address_replacements'),10,2);
 		add_filter('woocommerce_localisation_address_formats',array($this,'nam_localisation_address_formats'),10,1);
 		add_filter('woocommerce_my_account_my_address_formatted_address',array($this,'nam_my_account_my_address_formatted_address'),10,3);
 		add_filter('woocommerce_address_to_edit',array ($this,'nam_address_to_edit'),10,1);
 		add_action('woocommerce_checkout_process', array($this,'is_valid_district'));
+    add_filter('woocommerce_get_order_address',array($this,'nam_get_order_address'),10,3);
 	}
 
 	/**
@@ -148,7 +149,7 @@ final class Woocommerce_State_VietNam
 
 		if ( is_checkout() || is_wc_endpoint_url('edit-address') ) {
 			$depend=array('jquery');
-			if (is_plugin_active('woocommerce-multistep-checkout/woocommerce-multistep-checkout.php')) 
+			if (is_plugin_active('woocommerce-multistep-checkout/woocommerce-multistep-checkout.php'))
 				$depend[]='wmc-wizard';
 			wp_register_script( 'nam-state-select', NAM_JS . 'nam-state.js', $depend, NAM_VER, true );
 			wp_enqueue_script( 'nam-state-select');
@@ -168,7 +169,7 @@ final class Woocommerce_State_VietNam
 
 		wp_localize_script( 'nam-admin', 'nam_state_params', array( 'distric' => $distric ) );
 	}
-		
+
 	function setup_city_selector(&$city_field){
 		$city_field['placeholder']='Chọn tỉnh/thành phố';
 		$city_field['type']='select';
@@ -178,7 +179,7 @@ final class Woocommerce_State_VietNam
 			$city_field['options'][$value['name']]=$value['name'];
 		}
 	}
-	
+
 	function setup_district_selector(&$district_field,$default){
 		$districts=array(""=>"Xin chọn quận huyện");
 		foreach ($this->nam_json[$default]['districts'] as $key=>$value) {
@@ -197,13 +198,22 @@ final class Woocommerce_State_VietNam
 	*/
 	public function nam_additional_checkout_fields ($fields){
 		unset($fields['billing']['billing_state']);
+    unset($fields['billing']['billing_company']);
+    unset($fields['billing']['billing_postcode']);
+    unset($fields['shipping']['shipping_postcode']);
+    unset($fields['shipping']['shipping_company']);
+    $fields['billing']['billing_email']['class'] = array("form-row-wide");
+    $fields['billing']['billing_phone']['class']= array('form-row-wide');
+    $fields['shipping']['shipping_email']['placeholder']= 'Nhập email người nhận';
+    $fields['shipping']['shipping_phone']['required']= true;
+    $fields['shipping']['shipping_phone']['placeholder']= 'Nhập số điện thoại người nhận';
 
 		$this->setup_city_selector($fields['shipping']['shipping_city']);
 		$this->setup_city_selector($fields['billing']['billing_city']);
 		if ( is_user_logged_in()){
 			$bcityid=$this->find_city_id(WC()->customer->city);
 		}
-		else $bcityid='1';		
+		else $bcityid='1';
 		$this->setup_district_selector($fields['billing']['billing_district_vn'],$bcityid);
 		if ( is_user_logged_in()){
 			$scityid=$this->find_city_id(WC()->customer->shipping_city);
@@ -217,8 +227,6 @@ final class Woocommerce_State_VietNam
 	 */
 	function wc_custom_order_address_fields( $fields ) {
 
-		//$fields['city']['class'] = array( 'form-row-wide', 'address-field' );
-		//$fields['city']['clear'] = true;
 		$fields['district_vn'] = array (
 				'label'        => __( 'Quận/huyện', 'woocommerce' ),
 				'required'     => true,
@@ -274,7 +282,7 @@ final class Woocommerce_State_VietNam
 		$packages[0]['destination']['district_vn'] = WC()->session->get('district_vn' );
 		return $packages;
 	}
-	
+
 	/**
 	 * Set session variable [district_vn]
 	 */
@@ -285,7 +293,7 @@ final class Woocommerce_State_VietNam
 			$to_district=!empty( $urlparams['shipping_district_vn'] )?sanitize_text_field($urlparams['shipping_district_vn']):$to_district;
 		WC()->session->set( 'district_vn', $to_district);
 	}
-	
+
 	public function add_district_fields($fields){
 		$new_fields= array(
 			'first_name' => $fields['first_name'],
@@ -297,52 +305,38 @@ final class Woocommerce_State_VietNam
 				'label'=>"Quận",
 				'show'=>false
 				),
-			'address_1' => $fields['address_1']	
+			'address_1' => $fields['address_1']
 		);
 		$new_fields['address_1']['wrapper_class']="form-field-wide";
 		$new_fields['phone']['label']="Số điện thoại";
 		$new_fields['email']['label']="Email";
 		return $new_fields;
 	}
-	
-	public function nam_woocommerce_order_formatted_billing_address($address,$order){
-		$address=array(
-			'first_name'    => $order->billing_first_name,
-			'last_name'     => $order->billing_last_name,
-			'company'       => $order->billing_company,
-			'address_1'     => $order->billing_address_1,
-			'address_2'     => $order->billing_address_2,			
-			'district_vn'   => $order->billing_district_vn,
-			'city'          => $order->billing_city,
-			'state'         => $order->billing_state,
-			'postcode'      => $order->billing_postcode,
-			'country'       => $order->billing_country
-		);
-		
-		return $address;
-	}
+
 	/**
-	 *	make custom order shipping address
-	 *
+	 * insert district to address string after $address[$key]
+	 * default : get billing_district_vn
 	 *	@return array
 	 */
-	public function nam_order_formatted_shipping_address($address,$order){
-		$address=array(
-			'first_name'    => $order->shipping_first_name,
-			'last_name'     => $order->shipping_last_name,
-			'company'       => $order->shipping_company,
-			'address_1'     => $order->shipping_address_1,
-			'address_2'     => $order->shipping_address_2,			
-			'district_vn'   => $order->shipping_district_vn,
-			'city'          => $order->shipping_city,
-			'state'         => $order->shipping_state,
-			'postcode'      => $order->shipping_postcode,
-			'country'       => $order->shipping_country
-		);
-		
-		return $address;
+  function nam_insert_district_to_address ($address,$order,$type="billing",$key="address_2"){
+    $offset = array_search($key, array_keys($address));
+
+    $result = array_merge
+            (
+              array_slice($address, 0, $offset),
+              array('district_vn' => ($type==='billing')?$order->billing_district_vn:$order->shipping_district_vn),
+              array_slice($address, $offset, null)
+            );
+    return $result;
+  }
+
+	public function nam_insert_district_to_shipping_address($address,$order){
+    return $this->nam_insert_district_to_address($address,$order,'shipping');
 	}
-	
+
+  public function nam_order_formatted_billing_address($address,$order){
+    return $this->nam_insert_district_to_address($address,$order);
+  }
 	public function nam_formatted_address_replacements($formatted_address,$args){
 		extract( $args );
 		$formatted_address = array(
@@ -372,14 +366,22 @@ final class Woocommerce_State_VietNam
 		);
 		return $formatted_address;
 	}
+
 	public function nam_localisation_address_formats($countries){
 		$countries['VN']="{name}\n{company}\n{address_1}\n{district_vn}\n{city}\n{country}";
 		return $countries;
 	}
+
 	public function nam_my_account_my_address_formatted_address($address, $customer_id, $name){
 		$address['district_vn'] = get_user_meta( $customer_id, $name . '_district_vn', true );
 		return $address;
 	}
+
+  public function nam_get_order_address($address, $type,$order){
+      $address['district_vn'] = ( 'billing' === $type ) ? $order->billing_district_vn:
+      $order->shipping_district_vn;
+    return $address;
+  }
 	function find_city_id($name){
 		foreach ($this->nam_json as $key =>$value){
 			if (strcmp($value['name'],$name)==0)
@@ -402,8 +404,8 @@ final class Woocommerce_State_VietNam
 			$this->setup_district_selector($address['shipping_district_vn'],$this->find_city_id($address['shipping_city']['value']));
 		return $address;
 	}
-	
-	public function is_valid_district() { 
+
+	public function is_valid_district() {
 		$load_address=array("billing"=>"Quận thanh toán");
 		if (!empty($_POST['ship_to_different_address']))
 			$load_address['shipping']="Quận giao hàng";

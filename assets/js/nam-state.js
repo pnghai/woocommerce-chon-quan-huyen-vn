@@ -10,8 +10,22 @@ jQuery( document ).ready(function( $ ) {
 	if ( typeof nam_state_params === 'undefined' ) {
 		return false;
 	}
+	if ( $().select2 ) {
+		$( '#billing_city, #shipping_city' ).select2({minimumResultsForSearch: Infinity} );
+		var wc_district_select_select2 = function() {
+			$( '#billing_district_vn,#shipping_district_vn' ).show( function() {
+				$( this ).select2( {
+					width: '100%'});
+			});
+		};
+		wc_district_select_select2(); 
+		$( document.body ).bind( 'city_to_district_changed', function() {
+			wc_district_select_select2();
+		});
+	};
+	
 	var state = nam_state_params.state;
-	$(document.body).on('change','#billing_city', function(e) {
+	$(document.body).on('change',"[id$='_city']", function(e) {
 
 		var value = $(this).find(':selected').index(),
 			city 	= $(this).val();
@@ -26,10 +40,10 @@ jQuery( document ).ready(function( $ ) {
 					options = options + '<option data-key="' + index + '" value="' + districts[ index ] + '">' + districts[ index ] + '</option>';
 				}
 			}
-
-			$('#billing_district_vn').html( '<option value="">Xin chọn quận/huyện</option>' + options ).select2("val","");
+			var current_id=$(this).attr('id');
+			var district_vn='#'+current_id.slice(0,-4)+"district_vn";
+			$(district_vn).html( '<option value="">Xin chọn quận/huyện</option>' + options ).select2("val","");
 		}
-
+		$(document).trigger('city_to_district_changed');
 	});
-
 });
