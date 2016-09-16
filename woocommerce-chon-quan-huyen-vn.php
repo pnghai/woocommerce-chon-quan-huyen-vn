@@ -231,6 +231,7 @@ final class Woocommerce_State_VietNam
 				'required'     => true,
 				'class'        => array( 'form-row-wide', 'address-field' )
 			);
+			d($fields);
 		$order = array(
 			'first_name',
 			'last_name',
@@ -244,7 +245,8 @@ final class Woocommerce_State_VietNam
 			'address_2',
 		);
 		foreach( $order as $field ) {
-			$ordered_fields[$field] = $fields[$field];
+			if (isset($fields[$field]))
+				$ordered_fields[$field] = $fields[$field];
 		}
 		$fields = $ordered_fields;
 
