@@ -198,28 +198,27 @@ final class Woocommerce_State_VietNam
 	*/
 	public function nam_additional_checkout_fields ($fields){
 		unset($fields['billing']['billing_state']);
-    unset($fields['billing']['billing_company']);
-    unset($fields['billing']['billing_postcode']);
-    unset($fields['shipping']['shipping_postcode']);
-    unset($fields['shipping']['shipping_company']);
-    $fields['billing']['billing_email']['class'] = array("form-row-wide");
-    $fields['billing']['billing_phone']['class']= array('form-row-wide');
-    $fields['shipping']['shipping_email']['placeholder']= 'Nhập email người nhận';
-    $fields['shipping']['shipping_phone']['required']= true;
-    $fields['shipping']['shipping_phone']['placeholder']= 'Nhập số điện thoại người nhận';
-
-		$this->setup_city_selector($fields['shipping']['shipping_city']);
-		$this->setup_city_selector($fields['billing']['billing_city']);
-		if ( is_user_logged_in()){
-			$bcityid=$this->find_city_id(WC()->customer->city);
+		unset($fields['billing']['billing_company']);
+		unset($fields['billing']['billing_postcode']);
+		unset($fields['shipping']['shipping_postcode']);
+		unset($fields['shipping']['shipping_company']);
+		$fields['billing']['billing_email']['class'] = array("form-row-wide");
+		$fields['billing']['billing_phone']['class']= array('form-row-wide');
+		$fields['shipping']['shipping_email']['placeholder']= 'Nhập email người nhận';
+		$fields['shipping']['shipping_phone']['required']= true;
+		$fields['shipping']['shipping_phone']['placeholder']= 'Nhập số điện thoại người nhận';
+		$types=array('billing','shipping');
+		foreach ($types as $type){
+			$this->setup_city_selector($fields[$type][$type.'_city']);
+			if ( is_user_logged_in()){
+				$current_user = wp_get_current_user();
+				$city = get_user_meta( $current_user->ID, $type.'_city', true );
+				$cityid=$this->find_city_id($city);
+				$cityid = ($cityid==NULL)?"1":$cityid;
+			}
+			else $cityid='1';
+			$this->setup_district_selector($fields[$type][$type.'_district_vn'],$cityid);	
 		}
-		else $bcityid='1';
-		$this->setup_district_selector($fields['billing']['billing_district_vn'],$bcityid);
-		if ( is_user_logged_in()){
-			$scityid=$this->find_city_id(WC()->customer->shipping_city);
-		}
-		else $scityid='1';
-		$this->setup_district_selector($fields['shipping']['shipping_district_vn'],$scityid);
 		return ($fields);
 	}
 	/**
