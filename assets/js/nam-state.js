@@ -30,16 +30,18 @@ jQuery( document ).ready(function( $ ) {
 		var value = $(this).find(':selected').index(),
 			city 	= $(this).val();
 
-		if( (city!==undefined) && (city!==null) &&  (city.length > 0) ){
-
-			var districts = state[value].districts,
+		if( (city!==undefined) && (city!==null) ){
+			
 			options = '';
+			if (city.length > 0){
+				var districts = state[value].districts;
 
-			for( var index in districts ) {
-				if ( districts.hasOwnProperty( index ) ) {
-					options = options + '<option data-key="' + index + '" value="' + districts[ index ] + '">' + districts[ index ] + '</option>';
+				for( var index in districts ) {
+					if ( districts.hasOwnProperty( index ) ) {
+						options = options + '<option data-key="' + index + '" value="' + districts[ index ] + '">' + districts[ index ] + '</option>';
+					}
 				}
-			}
+			}			
 			var current_id=$(this).attr('id');
 			var district_vn='#'+current_id.slice(0,-4)+"district_vn";
 			$(district_vn).html( '<option value="">Xin chọn quận/huyện</option>' + options ).select2("val","");
