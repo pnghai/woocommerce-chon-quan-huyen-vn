@@ -231,7 +231,19 @@ final class Woocommerce_State_VietNam
 				'required'     => true,
 				'class'        => array( 'form-row-wide', 'address-field' )
 			);
-			d($fields);
+		//thêm các field này để đảm bảo thứ tự
+		$fields['email']= array(
+				'label'        => __( 'Email', 'woocommerce' ),
+				'required'     => true,
+				'class'        => array( 'form-row-wide' ),
+				'clear'        => true,
+				'autocomplete' => 'email');	
+		$fields['phone']= array(
+				'label'        => __( 'Phone', 'woocommerce' ),
+				'required'     => true,
+				'class'        => array( 'form-row-wide' ),
+				'clear'        => true,
+				'autocomplete' => 'phone');
 		$order = array(
 			'first_name',
 			'last_name',
